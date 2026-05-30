@@ -1,0 +1,12 @@
+services:
+  dategitter:
+    image: dategitter
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    container_name: dategitter
+    volumes:
+      # Mount the GCP key from the user's machine to the path expected inside the container.
+      - ${GOOGLE_KEY_HOST_PATH:-./google_key.json}:/app/google_key.json:ro
+      # Mount the user's photo folder to the fixed container path used by the app.
+      - ${PHOTOS_DIR_HOST_PATH:-/path/to/photos}:/photos

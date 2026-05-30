@@ -1,0 +1,17 @@
+# Local environment files
+.env
+
+
+# Local Google credentials
+google_key.json
+
+# Generated dry-run output
+dry_run_proposed_changes.csv
+
+# Python cache and virtualenv artifacts
+__pycache__/
+*.pyc
+.venv/
+
+# old scripts I don't want to delete yet
+main.py.bak
