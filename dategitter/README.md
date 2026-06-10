@@ -1,89 +1,65 @@
+![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
+
 # dategitter
 
-Scans a folder of photos, reads any printed date visible in each image using Google Cloud Vision OCR, then writes the detected date into the image's EXIF metadata (`DateTimeOriginal` / `CreateDate`) using ExifTool.
+A containerized utility for adding timestamps to scanned photo collections. Uses Google Cloud Vision OCR to detect printed dates on old photographs and writes the parsed date directly into each image's EXIF DateTimeOriginal and CreateDate fields via ExifTool.
 
-Useful for digitized physical photos (e.g. scanned prints or film) where the date is stamped on the photo itself but absent from the file metadata.
+## What it does
 
-## Prerequisites
+- Recursively scans a directory for .jpg, .jpeg, and .png files
+- Detects text in each image using the Google Cloud Vision API
+- Parses detected text into a valid EXIF timestamp (YYYY:MM:DD 12:00:00), handling ambiguous date formats and two-digit years
+- Writes timestamps directly to EXIF metadata via ExifTool, or in --dry-run mode, logs proposed changes to dry_run_proposed_changes.csv without modifying any files
 
-- [Docker](https://docs.docker.com/get-docker/) and Docker Compose
-- A **Google Cloud service account key** ([what's this?](https://cloud.google.com/iam/docs/service-account-overview)) with the [Cloud Vision API](https://cloud.google.com/vision) enabled
+## Requirements
 
-## Setup
+- Docker + Docker Compose
+- Google Cloud project with the Vision API enabled
+- A Google Cloud service account key (JSON).
 
-1. **Clone the repo**
+More info about Gcloud service accounts can be found [here](https://docs.cloud.google.com/iam/docs/keys-list-get) on Google's website. I believe there is a free tier.
 
-   ```bash
-   git clone <repo-url>
-   cd dategitter
-   ```
+> [!NOTE]
+> Cloud Vision API can be swapped for local ML inference if you have capable hardware. The containerized architecture makes this straightforward to refactor. If you do, please submit a PR because this is a feature I hope to add ASAP.
 
-2. **Add your Google Cloud key**
+> [!NOTE]
+> If you would like to try out this tool, you don't have Cloud Vision API, and you don't wish to refactor the code, please get in contact with me! I want to test this tool further, I will work to find a way to get your photos dated!
 
-   Place your service account JSON file in the project root as `google_key.json`, or set the `GOOGLE_KEY_HOST_PATH` environment variable to point to its location on your machine.
+## Quick start (Docker Compose)
 
-3. **Set your photos directory**
-
-   Set the `PHOTOS_DIR_HOST_PATH` environment variable to the folder containing your photos, or edit `compose.yaml` directly.
-
-## Usage
-
-### Run with Docker Compose (recommended)
-
-```bash
-PHOTOS_DIR_HOST_PATH=/path/to/your/photos docker compose up
-```
-
-Or with a key at a custom path:
+1. Clone the repo
+2. Copy .env.example to .env and fill in your values:
+   - GOOGLE_KEY_HOST_PATH — path/to/serviceaccount/keys.json 
+   - PHOTOS_DIR_HOST_PATH — path/to/your/photos
+3. Run:
 
 ```bash
-GOOGLE_KEY_HOST_PATH=/path/to/key.json PHOTOS_DIR_HOST_PATH=/path/to/photos docker compose up
+docker compose up --build
 ```
 
-The container will walk the photos directory recursively and process every `.jpg`, `.jpeg`, and `.png` file it finds.
+## Authentication
 
-### Dry run (preview changes without writing EXIF)
+The script resolves credentials in this order:
+  1. GOOGLE_APPLICATION_CREDENTIALS environment variable (path to service account JSON)
+  2. A google_key.json file in the working directory
 
-Pass `--dry-run` via the `command` override to see what would be written without modifying any files. A `dry_run_proposed_changes.csv` will be written with the detected dates and proposed ExifTool commands.
+## Dry Run Mode
+
+To preview changes without modifying any EXIF data, add the --dry-run flag:
 
 ```bash
-docker compose run --rm dategitter python portable.py --dry-run
+   docker compose run dategitter --dry-run
 ```
 
-### Run directly (without Docker)
+Proposed changes are written to **dry_run_proposed_changes.csv**.
 
-Install dependencies and ExifTool, then:
+## Roadmap / Known Limitations
 
-```bash
-pip install -r requirements.txt
-# Set credentials
-export GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json
-python portable.py --photos /path/to/photos
-```
-
-## Environment variables
-
-| Variable | Default | Description |
-|---|---|---|
-| `GOOGLE_KEY_HOST_PATH` | `./google_key.json` | Host path to GCP service account key (Docker only) |
-| `PHOTOS_DIR_HOST_PATH` | `/path/to/photos` | Host path to photo directory (Docker only) |
-| `GOOGLE_APPLICATION_CREDENTIALS` | — | Path to GCP key inside the container or on the host |
-| `PHOTOS_DIR` | `/photos` | Photo directory inside the container |
-
-## How it works
-
-1. Each image is sent to the Google Cloud Vision text detection API.
-2. The returned text is scanned for a date pattern (`YYYY-MM-DD`, `MM/DD/YY`, etc.).
-3. The parsed date is written to the image's EXIF fields using ExifTool (`-overwrite_original`).
+- Date format detection is heuristic-based; highly unusual formats may not parse correctly
+- All metadata date changes will include 12:00:00 as the time. Some photos contain timestamps, but this utility can't parse them yet.
+- No GPU/local inference path yet — currently requires Google Cloud Vision API
 
 ## Contributing
 
-Contributions are welcome! Open an issue or submit a pull request.
-
-One area of interest is refactoring the OCR step to run on local hardware (e.g. Tesseract) instead of Google Cloud Vision — removing the external dependency entirely. This is planned for a future version.
-
-## Notes
-
-- Files are modified in place. Back up your photos before running.
-- Only `.jpg`, `.jpeg`, and `.png` files are processed.
-- If no date is detected in an image it is skipped without modification.
+If anyone wishes to contribute, feel free to fork and submit a PR.
